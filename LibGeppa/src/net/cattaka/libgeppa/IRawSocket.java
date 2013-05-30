@@ -8,6 +8,8 @@ import java.io.OutputStream;
 public interface IRawSocket {
     public String getLabel();
 
+    public boolean setup();
+
     public InputStream getInputStream();
 
     public OutputStream getOutputStream();

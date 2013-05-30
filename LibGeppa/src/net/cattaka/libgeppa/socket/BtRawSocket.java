@@ -29,6 +29,12 @@ public class BtRawSocket implements IRawSocket {
     }
 
     @Override
+    public boolean setup() {
+        // none
+        return true;
+    }
+
+    @Override
     public String getLabel() {
         return mLabel;
     }
