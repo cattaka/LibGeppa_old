@@ -1,16 +1,20 @@
 
 package net.cattaka.libgeppa.socket;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.FileDescriptor;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
 import net.cattaka.libgeppa.IRawSocket;
-import net.cattaka.libgeppa.bluetooth.IBluetoothSocket;
+import android.os.ParcelFileDescriptor;
 
-public class BtRawSocket implements IRawSocket {
-    private IBluetoothSocket mSocket;
+public class AdkRawSocket implements IRawSocket {
+    private ParcelFileDescriptor mParcelFileDescriptor;
 
     private InputStream mInputStream;
 
@@ -20,11 +24,15 @@ public class BtRawSocket implements IRawSocket {
 
     private String mLabel;
 
-    public BtRawSocket(IBluetoothSocket socket, int outputBufSize, String label) throws IOException {
-        mSocket = socket;
+    public AdkRawSocket(ParcelFileDescriptor parcelFileDescriptor, String label) {
+        super();
         mLabel = label;
-        mInputStream = mSocket.getInputStream();
-        mOutputStream = new BufferedOutputStream(mSocket.getOutputStream(), outputBufSize);
+        mParcelFileDescriptor = parcelFileDescriptor;
+
+        FileDescriptor fd = mParcelFileDescriptor.getFileDescriptor();
+        mInputStream = new BufferedInputStream(new FileInputStream(fd));
+        mOutputStream = new BufferedOutputStream(new FileOutputStream(fd));
+
         connected = true;
     }
 
@@ -51,8 +59,13 @@ public class BtRawSocket implements IRawSocket {
 
     @Override
     public void close() throws IOException {
-        connected = false;
-        mSocket.close();
+        try {
+            connected = false;
+            mParcelFileDescriptor.getFileDescriptor().sync();
+            mParcelFileDescriptor.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

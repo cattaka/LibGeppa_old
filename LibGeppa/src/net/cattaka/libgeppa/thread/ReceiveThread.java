@@ -23,6 +23,8 @@ public class ReceiveThread<T extends IPacket> {
 
     private Thread mThread;
 
+    private boolean mBuggyStream = false;
+
     public ReceiveThread(int receiveMessageId, int errorMessageId, Handler handler,
             InputStream inputStream, IPacketFactory<T> packetFactory) {
         super();
@@ -34,6 +36,11 @@ public class ReceiveThread<T extends IPacket> {
     }
 
     public void startThread(String label) {
+        startThread(label, false);
+    }
+
+    public void startThread(String label, boolean buggyStream) {
+        mBuggyStream = buggyStream;
         mThread = new Thread("ReceiveThread:" + label) {
             @Override
             public void run() {
@@ -55,7 +62,9 @@ public class ReceiveThread<T extends IPacket> {
 
     public void stopThread() throws InterruptedException {
         closeStream();
-        mThread.join();
+        if (!mBuggyStream) {
+            mThread.join();
+        }
     }
 
     private synchronized void closeStream() {
