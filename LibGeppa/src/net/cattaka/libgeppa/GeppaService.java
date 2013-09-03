@@ -13,6 +13,7 @@ import net.cattaka.libgeppa.data.IPacketFactory;
 import net.cattaka.libgeppa.socket.BtRawSocket;
 import net.cattaka.libgeppa.thread.ConnectionThread;
 import net.cattaka.libgeppa.thread.ConnectionThread.IRawSocketPrepareTask;
+import net.cattaka.libgeppa.thread.IConnectionThreadListener;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
@@ -100,9 +101,12 @@ public abstract class GeppaService<T extends IPacket> extends AbsGeppaService<T>
         unregisterReceiver(mBtConnReceiver);
     }
 
-    protected ConnectionThread<T> createConnectionThread() {
+    @Override
+    protected ConnectionThread<T> createConnectionThread(
+            IConnectionThreadListener<T> connectionThreadListener) {
         if (mBluetoothAdapter.isEnabled()) {
-            return new ConnectionThread<T>(mBluetoothPrepareTask, getPacketFactory(), true);
+            return new ConnectionThread<T>(mBluetoothPrepareTask, getPacketFactory(),
+                    connectionThreadListener, true);
         } else {
             return null;
         }

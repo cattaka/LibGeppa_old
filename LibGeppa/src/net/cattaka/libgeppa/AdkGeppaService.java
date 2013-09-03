@@ -6,6 +6,7 @@ import net.cattaka.libgeppa.data.IPacketFactory;
 import net.cattaka.libgeppa.socket.AdkRawSocket;
 import net.cattaka.libgeppa.thread.ConnectionThread;
 import net.cattaka.libgeppa.thread.ConnectionThread.IRawSocketPrepareTask;
+import net.cattaka.libgeppa.thread.IConnectionThreadListener;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -29,7 +30,8 @@ public abstract class AdkGeppaService<T extends IPacket> extends AbsGeppaService
             mAdkCompatible = new IAdkCompatible<T>(UsbManager.ACTION_USB_ACCESSORY_ATTACHED,
                     UsbManager.ACTION_USB_ACCESSORY_DETACHED) {
                 @Override
-                protected ConnectionThread<T> createConnectionThread() {
+                protected ConnectionThread<T> createConnectionThread(
+                        IConnectionThreadListener<T> connectionThreadListener) {
                     UsbManager usbManager = (UsbManager)getSystemService(USB_SERVICE);
                     UsbAccessory[] accs = usbManager.getAccessoryList();
                     UsbAccessory acc = (accs != null && accs.length > 0) ? accs[0] : null;
@@ -54,7 +56,7 @@ public abstract class AdkGeppaService<T extends IPacket> extends AbsGeppaService
                         ;
 
                         return new ConnectionThread<T>(new AdkPrepareTask(acc), getPacketFactory(),
-                                true);
+                                connectionThreadListener, true);
                     } else if (acc != null) {
                         // Request
                         Intent intent = new Intent(ACTION_USB_PERMISSION);
@@ -73,7 +75,8 @@ public abstract class AdkGeppaService<T extends IPacket> extends AbsGeppaService
                     com.android.future.usb.UsbManager.ACTION_USB_ACCESSORY_ATTACHED,
                     com.android.future.usb.UsbManager.ACTION_USB_ACCESSORY_DETACHED) {
                 @Override
-                protected ConnectionThread<T> createConnectionThread() {
+                protected ConnectionThread<T> createConnectionThread(
+                        IConnectionThreadListener<T> connectionThreadListener) {
                     com.android.future.usb.UsbManager usbManager = com.android.future.usb.UsbManager
                             .getInstance(me);
                     com.android.future.usb.UsbAccessory[] accs = usbManager.getAccessoryList();
@@ -101,7 +104,7 @@ public abstract class AdkGeppaService<T extends IPacket> extends AbsGeppaService
                         ;
 
                         return new ConnectionThread<T>(new AdkPrepareTask(acc), getPacketFactory(),
-                                true);
+                                connectionThreadListener, true);
                     } else if (acc != null) {
                         // Request
                         Intent intent = new Intent(ACTION_USB_PERMISSION);
@@ -131,7 +134,8 @@ public abstract class AdkGeppaService<T extends IPacket> extends AbsGeppaService
             ACTION_USB_ACCESSORY_DETACHED = actionUsbAccessoryDetached;
         }
 
-        protected abstract ConnectionThread<T> createConnectionThread();
+        protected abstract ConnectionThread<T> createConnectionThread(
+                IConnectionThreadListener<T> connectionThreadListener);
     }
 
     private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
@@ -179,7 +183,8 @@ public abstract class AdkGeppaService<T extends IPacket> extends AbsGeppaService
         unregisterReceiver(mUsbReceiver);
     }
 
-    protected ConnectionThread<T> createConnectionThread() {
-        return mAdkCompatible.createConnectionThread();
+    protected ConnectionThread<T> createConnectionThread(
+            IConnectionThreadListener<T> connectionThreadListener) {
+        return mAdkCompatible.createConnectionThread(connectionThreadListener);
     }
 }

@@ -133,15 +133,17 @@ public class ConnectionThread<T extends IPacket> {
 
     private IRawSocket mRawSocket;
 
-    public ConnectionThread(IRawSocketPrepareTask prepareTask, IPacketFactory<T> packetFactory) {
-        this(prepareTask, packetFactory, false);
+    public ConnectionThread(IRawSocketPrepareTask prepareTask, IPacketFactory<T> packetFactory,
+            IConnectionThreadListener<T> connectionThreadListener) {
+        this(prepareTask, packetFactory, connectionThreadListener, false);
     }
 
     public ConnectionThread(IRawSocketPrepareTask prepareTask, IPacketFactory<T> packetFactory,
-            boolean useMainLooperForListener) {
+            IConnectionThreadListener<T> connectionThreadListener, boolean useMainLooperForListener) {
         super();
         mPrepareTask = prepareTask;
         mPacketFactory = packetFactory;
+        mConnectionThreadListener = connectionThreadListener;
 
         if (useMainLooperForListener) {
             mOuterHandler = new Handler(Looper.getMainLooper(), mOuterCallback);
@@ -152,9 +154,7 @@ public class ConnectionThread<T extends IPacket> {
         mRawSocket = mPrepareTask.prepareRawSocket();
     }
 
-    public void startThread(IConnectionThreadListener<T> connectionThreadListener)
-            throws InterruptedException {
-        mConnectionThreadListener = connectionThreadListener;
+    public void startThread() throws InterruptedException {
         final Semaphore semaphore = new Semaphore(1);
         semaphore.acquire();
         mThread = new Thread("ConnectionThread:CONNECTING") {

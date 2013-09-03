@@ -136,15 +136,16 @@ public abstract class AbsGeppaService<T extends IPacket> extends Service {
         destroyed = true;
     }
 
-    abstract protected ConnectionThread<T> createConnectionThread();
+    abstract protected ConnectionThread<T> createConnectionThread(
+            IConnectionThreadListener<T> connectionThreadListener);
 
     protected void startConnectionThread() {
         if (!destroyed && mConnectionThread == null) {
-            mConnectionThread = createConnectionThread();
+            mConnectionThread = createConnectionThread(mConnectionThreadListener);
             if (mConnectionThread != null) {
                 try {
                     me.onConnectionStateChanged(ConnectionState.INITIAL);
-                    mConnectionThread.startThread(mConnectionThreadListener);
+                    mConnectionThread.startThread();
                 } catch (InterruptedException e) {
                     // Do not interrupt to main thread.
                     throw new RuntimeException("Do not interrupt to main thread!");
