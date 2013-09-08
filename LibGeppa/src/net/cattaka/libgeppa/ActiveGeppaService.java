@@ -32,7 +32,7 @@ import android.util.Log;
 import android.util.SparseArray;
 
 public abstract class ActiveGeppaService<T extends IPacket> extends Service {
-    protected static final String ACTION_USB_PERMISSION = "net.cattaka.android.blacktortoise.action_permission";
+    private String ACTION_USB_PERMISSION;
 
     protected static final String EXTRA_USB_DEVICE_KEY = "usbDevicekey";
 
@@ -218,6 +218,8 @@ public abstract class ActiveGeppaService<T extends IPacket> extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        ACTION_USB_PERMISSION = getPackageName() + ".action_permission";
+
         IntentFilter filter = new IntentFilter();
         filter.addAction(ACTION_USB_PERMISSION);
         registerReceiver(mUsbReceiver, filter);

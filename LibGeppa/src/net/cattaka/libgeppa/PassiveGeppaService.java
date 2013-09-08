@@ -16,7 +16,7 @@ import android.os.RemoteException;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
 
-public class AbsGeppaService<T extends IPacket> extends Service {
+public class PassiveGeppaService<T extends IPacket> extends Service {
     private IConnectionThreadListener<T> mConnectionThreadListener = new IConnectionThreadListener<T>() {
         @Override
         public void onReceive(T packet) {
@@ -68,7 +68,7 @@ public class AbsGeppaService<T extends IPacket> extends Service {
         }
     };
 
-    private AbsGeppaService<T> me = this;
+    private PassiveGeppaService<T> me = this;
 
     //
     // private IBluetoothAdapter mBluetoothAdapter;
@@ -89,7 +89,7 @@ public class AbsGeppaService<T extends IPacket> extends Service {
 
     private int mBindCount = 0;
 
-    public AbsGeppaService() throws NullPointerException {
+    public PassiveGeppaService() throws NullPointerException {
         // mBluetoothAdapter = BluetoothAdapterFactory.getDefaultAdapter();
         mListenerSeq = 1;
         mListenerMap = new SparseArray<IGeppaServiceListener>();

@@ -8,7 +8,7 @@ import net.cattaka.libgeppa.passive.BluetoothPassiveReceiver;
 import net.cattaka.libgeppa.passive.IPassiveReceiver;
 import net.cattaka.libgeppa.passive.IPassiveReceiverListener;
 
-public abstract class BluetoothPassiveGeppaService<T extends IPacket> extends AbsGeppaService<T> {
+public abstract class BluetoothPassiveGeppaService<T extends IPacket> extends PassiveGeppaService<T> {
     private BluetoothPassiveGeppaService<T> me = this;
 
     private IPassiveReceiver<T> mPassiveReceiver;

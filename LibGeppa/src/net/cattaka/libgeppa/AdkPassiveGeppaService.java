@@ -7,7 +7,7 @@ import net.cattaka.libgeppa.passive.AdkPassiveReceiver;
 import net.cattaka.libgeppa.passive.IPassiveReceiver;
 import net.cattaka.libgeppa.passive.IPassiveReceiverListener;
 
-public abstract class AdkPassiveGeppaService<T extends IPacket> extends AbsGeppaService<T> {
+public abstract class AdkPassiveGeppaService<T extends IPacket> extends PassiveGeppaService<T> {
 
     private AdkPassiveGeppaService<T> me = this;
 
