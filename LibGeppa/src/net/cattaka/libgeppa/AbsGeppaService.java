@@ -6,6 +6,7 @@ import net.cattaka.libgeppa.data.ConnectionState;
 import net.cattaka.libgeppa.data.IPacket;
 import net.cattaka.libgeppa.data.IPacketFactory;
 import net.cattaka.libgeppa.data.PacketWrapper;
+import net.cattaka.libgeppa.passive.IPassiveReceiver;
 import net.cattaka.libgeppa.thread.ConnectionThread;
 import net.cattaka.libgeppa.thread.IConnectionThreadListener;
 import android.app.Service;
@@ -15,7 +16,7 @@ import android.os.RemoteException;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
 
-public abstract class AbsGeppaService<T extends IPacket> extends Service {
+public class AbsGeppaService<T extends IPacket> extends Service {
     private IConnectionThreadListener<T> mConnectionThreadListener = new IConnectionThreadListener<T>() {
         @Override
         public void onReceive(T packet) {
@@ -78,6 +79,8 @@ public abstract class AbsGeppaService<T extends IPacket> extends Service {
 
     private IPacketFactory<T> mPacketFactory;
 
+    private IPassiveReceiver<T> mPassiveReceiver;
+
     private int mListenerSeq;
 
     private SparseArray<IGeppaServiceListener> mListenerMap;
@@ -86,19 +89,30 @@ public abstract class AbsGeppaService<T extends IPacket> extends Service {
 
     private int mBindCount = 0;
 
-    public AbsGeppaService(IPacketFactory<T> packetFactory) throws NullPointerException {
-        if (packetFactory == null) {
-            throw new NullPointerException();
-        }
+    public AbsGeppaService() throws NullPointerException {
         // mBluetoothAdapter = BluetoothAdapterFactory.getDefaultAdapter();
-        mPacketFactory = packetFactory;
         mListenerSeq = 1;
         mListenerMap = new SparseArray<IGeppaServiceListener>();
+    }
+
+    public void setup(IPacketFactory<T> packetFactory, IPassiveReceiver<T> passiveReceiver) {
+        if (packetFactory == null) {
+            throw new NullPointerException("packetFactory");
+        }
+        if (passiveReceiver == null) {
+            throw new NullPointerException("passiveReceiver");
+        }
+        mPacketFactory = packetFactory;
+        mPassiveReceiver = passiveReceiver;
     }
 
     @Override
     public void onCreate() {
         super.onCreate();
+        if (mPacketFactory == null || mPassiveReceiver == null) {
+            throw new IllegalStateException("setup method did not called.");
+        }
+        mPassiveReceiver.onCreateService(me, mPacketFactory);
         destroyed = false;
     }
 
@@ -136,8 +150,10 @@ public abstract class AbsGeppaService<T extends IPacket> extends Service {
         destroyed = true;
     }
 
-    abstract protected ConnectionThread<T> createConnectionThread(
-            IConnectionThreadListener<T> connectionThreadListener);
+    private ConnectionThread<T> createConnectionThread(
+            IConnectionThreadListener<T> connectionThreadListener) {
+        return mPassiveReceiver.createConnectionThread(connectionThreadListener);
+    }
 
     protected void startConnectionThread() {
         if (!destroyed && mConnectionThread == null) {

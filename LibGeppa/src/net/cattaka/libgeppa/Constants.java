@@ -8,6 +8,8 @@ public class Constants {
 
     public static final String TAG_DEBUG = "LibGeppa.debug";
 
+    public static final int DEFAULT_SERVER_PORT = 5000;
+
     public static final UUID SPP_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
     public static final byte STX = 0x02;
