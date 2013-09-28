@@ -8,6 +8,7 @@ import net.cattaka.libgeppa.adapter.IDeviceAdapter;
 import net.cattaka.libgeppa.adapter.IDeviceAdapterListener;
 import net.cattaka.libgeppa.adapter.LocalDeviceAdapter;
 import net.cattaka.libgeppa.adapter.RemoteDeviceAdapter;
+import net.cattaka.libgeppa.data.BaudRate;
 import net.cattaka.libgeppa.data.DeviceEventCode;
 import net.cattaka.libgeppa.data.DeviceInfo;
 import net.cattaka.libgeppa.data.DeviceInfo.DeviceType;
@@ -110,6 +111,8 @@ public abstract class ActiveGeppaService<T extends IPacket> extends Service {
     private int mNextConnectionListenerSeq = 1;
 
     private SparseArray<IActiveGeppaServiceListener> mServiceListeners;
+
+    private BaudRate mBaudRate = BaudRate.BAUD115200;
 
     private BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
@@ -251,7 +254,7 @@ public abstract class ActiveGeppaService<T extends IPacket> extends Service {
             if (usbManager.hasPermission(usbDevice)) {
                 // If service already has permission, it start thread.
                 mDeviceAdapter = new LocalDeviceAdapter<T>(mDeviceAdapterListener, mPacketFactory,
-                        true, usbManager, usbDevice);
+                        true, usbManager, usbDevice, mBaudRate);
                 try {
                     mDeviceAdapter.startAdapter();
                 } catch (InterruptedException e) {
@@ -286,6 +289,14 @@ public abstract class ActiveGeppaService<T extends IPacket> extends Service {
                 throw new RuntimeException(e);
             }
         }
+    }
+
+    public BaudRate getBaudRate() {
+        return mBaudRate;
+    }
+
+    public void setBaudRate(BaudRate baudRate) {
+        mBaudRate = baudRate;
     }
 
     abstract protected void handleConnectedNotification(boolean connected, DeviceInfo deviceInfo);
