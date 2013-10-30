@@ -251,7 +251,7 @@ public abstract class ActiveGeppaService<T extends IPacket> extends Service {
             UsbManager usbManager = (UsbManager)getSystemService(USB_SERVICE);
             Map<String, UsbDevice> devices = usbManager.getDeviceList();
             UsbDevice usbDevice = devices.get(deviceInfo.getUsbDeviceKey());
-            if (usbManager.hasPermission(usbDevice)) {
+            if (usbDevice != null && usbManager.hasPermission(usbDevice)) {
                 // If service already has permission, it start thread.
                 mDeviceAdapter = new LocalDeviceAdapter<T>(mDeviceAdapterListener, mPacketFactory,
                         true, usbManager, usbDevice, mBaudRate);
@@ -261,12 +261,22 @@ public abstract class ActiveGeppaService<T extends IPacket> extends Service {
                     // Impossible
                     throw new RuntimeException(e);
                 }
-            } else {
+            } else if (usbDevice != null) {
                 // Request
                 Intent intent = new Intent(ACTION_USB_PERMISSION);
                 intent.putExtra(EXTRA_USB_DEVICE_KEY, deviceInfo.getUsbDeviceKey());
                 PendingIntent pIntent = PendingIntent.getBroadcast(this, 0, intent, 0);
                 usbManager.requestPermission(usbDevice, pIntent);
+            } else {
+                AidlUtil.callMethods(mServiceListeners,
+                        new CallFunction<IActiveGeppaServiceListener>() {
+                            public boolean run(IActiveGeppaServiceListener item)
+                                    throws RemoteException {
+                                item.onDeviceStateChanged(DeviceState.CLOSED,
+                                        DeviceEventCode.NO_DEVICE, null);
+                                return true;
+                            };
+                        });
             }
         } else {
             mDeviceAdapter = new DummyDeviceAdapter<T>(mDeviceAdapterListener, sHandler);

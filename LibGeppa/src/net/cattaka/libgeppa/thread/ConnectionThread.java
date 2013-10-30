@@ -167,7 +167,7 @@ public class ConnectionThread<T extends IPacket> {
                 mOuterHandler.obtainMessage(EVENT_SOCKET_CONNECTING, handler).sendToTarget();
 
                 semaphore.release();
-                if (mRawSocket.setup()) {
+                if (mRawSocket != null && mRawSocket.setup()) {
                     try {
                         this.setName("ConnectionThread:" + mRawSocket.getLabel());
                         InputStream inputStream = mRawSocket.getInputStream();
@@ -204,7 +204,7 @@ public class ConnectionThread<T extends IPacket> {
     }
 
     public void stopThread() throws InterruptedException {
-        if (!mRawSocket.isConnected()) {
+        if (mRawSocket != null && !mRawSocket.isConnected()) {
             try {
                 mRawSocket.close();
             } catch (IOException e) {
