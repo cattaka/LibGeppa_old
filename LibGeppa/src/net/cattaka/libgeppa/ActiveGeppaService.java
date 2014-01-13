@@ -57,24 +57,14 @@ public abstract class ActiveGeppaService<T extends IPacket> extends Service {
 
     private void handleMessage(android.os.Message msg) {
         Object objs[] = (Object[])msg.obj;
-        IDeviceAdapter<T> mcThread = mDeviceAdapter;
         switch (msg.what) {
             case EVENT_REGISTER_CONNECTION_LISTENER: {
                 IActiveGeppaServiceListener listener = (IActiveGeppaServiceListener)objs[2];
-                try {
-                    DeviceState state = (mcThread != null) ? mcThread.getDeviceState() : null;
-                    DeviceInfo deviceInfo = pickDeviceInfo(mcThread);
-                    listener.onDeviceStateChanged(state, DeviceEventCode.ON_REGISTER, deviceInfo);
-
-                    mServiceListeners.append((Integer)objs[1], listener);
-                } catch (RemoteException e) {
-                    // Ignore
-                    Log.w(Constants.TAG, e.getMessage(), e);
-                }
+                registerConnectionListener(listener, (Integer)objs[1]);
                 break;
             }
             case EVENT_UNREGISTER_CONNECTION_LISTENER: {
-                mServiceListeners.remove((Integer)objs[1]);
+                unregisterConnectionListener((Integer)objs[1]);
                 break;
             }
             case EVENT_CONNECT: {
@@ -87,14 +77,12 @@ public abstract class ActiveGeppaService<T extends IPacket> extends Service {
             }
 
             default: {
-                if (mcThread != null) {
-                    switch (msg.what) {
-                        case EVENT_SEND_PACKET: {
-                            @SuppressWarnings("unchecked")
-                            T packet = (T)objs[1];
-                            mcThread.sendPacket(packet);
-                            break;
-                        }
+                switch (msg.what) {
+                    case EVENT_SEND_PACKET: {
+                        @SuppressWarnings("unchecked")
+                        T packet = (T)objs[1];
+                        sendPacket(packet);
+                        break;
                     }
                 }
                 break;
@@ -320,6 +308,38 @@ public abstract class ActiveGeppaService<T extends IPacket> extends Service {
             return adapter.getDeviceInfo();
         } else {
             return null;
+        }
+    }
+
+    private void registerConnectionListener(IActiveGeppaServiceListener listener, int seq) {
+        IDeviceAdapter<T> mcThread = mDeviceAdapter;
+        try {
+            DeviceState state = (mcThread != null) ? mcThread.getDeviceState() : null;
+            DeviceInfo deviceInfo = pickDeviceInfo(mcThread);
+            listener.onDeviceStateChanged(state, DeviceEventCode.ON_REGISTER, deviceInfo);
+
+            mServiceListeners.append(seq, listener);
+        } catch (RemoteException e) {
+            // Ignore
+            Log.w(Constants.TAG, e.getMessage(), e);
+        }
+    }
+
+    public int registerConnectionListener(IActiveGeppaServiceListener listener) {
+        int seq = mNextConnectionListenerSeq++;
+        registerConnectionListener(listener, seq);
+        return seq;
+    }
+
+    public void unregisterConnectionListener(int seq) {
+        mServiceListeners.remove(seq);
+    }
+
+    public boolean sendPacket(T packet) {
+        if (mDeviceAdapter != null) {
+            return mDeviceAdapter.sendPacket(packet);
+        } else {
+            return false;
         }
     }
 }
