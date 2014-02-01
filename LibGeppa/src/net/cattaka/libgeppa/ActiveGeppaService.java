@@ -8,6 +8,8 @@ import net.cattaka.libgeppa.adapter.IDeviceAdapter;
 import net.cattaka.libgeppa.adapter.IDeviceAdapterListener;
 import net.cattaka.libgeppa.adapter.LocalDeviceAdapter;
 import net.cattaka.libgeppa.adapter.RemoteDeviceAdapter;
+import net.cattaka.libgeppa.binder.ActiveGeppaServiceFuncs;
+import net.cattaka.libgeppa.binder.async.ActiveGeppaServiceFuncsAsync;
 import net.cattaka.libgeppa.data.BaudRate;
 import net.cattaka.libgeppa.data.DeviceEventCode;
 import net.cattaka.libgeppa.data.DeviceInfo;
@@ -26,69 +28,18 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
-import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 import android.util.SparseArray;
 
-public abstract class ActiveGeppaService<T extends IPacket> extends Service {
+public abstract class ActiveGeppaService<T extends IPacket> extends Service implements
+        ActiveGeppaServiceFuncs {
+    private ActiveGeppaServiceFuncsAsync mAsync = new ActiveGeppaServiceFuncsAsync(this);
+
     private String ACTION_USB_PERMISSION;
 
     protected static final String EXTRA_USB_DEVICE_KEY = "usbDevicekey";
-
-    private static final int EVENT_REGISTER_CONNECTION_LISTENER = 1;
-
-    private static final int EVENT_UNREGISTER_CONNECTION_LISTENER = 2;
-
-    private static final int EVENT_CONNECT = 3;
-
-    private static final int EVENT_DISCONNECT = 4;
-
-    private static final int EVENT_SEND_PACKET = 6;
-
-    private static Handler sHandler = new Handler() {
-        public void handleMessage(android.os.Message msg) {
-            Object objs[] = (Object[])msg.obj;
-            ActiveGeppaService<?> target = (ActiveGeppaService<?>)objs[0];
-            target.handleMessage(msg);
-        };
-    };
-
-    private void handleMessage(android.os.Message msg) {
-        Object objs[] = (Object[])msg.obj;
-        switch (msg.what) {
-            case EVENT_REGISTER_CONNECTION_LISTENER: {
-                IActiveGeppaServiceListener listener = (IActiveGeppaServiceListener)objs[2];
-                registerConnectionListener(listener, (Integer)objs[1]);
-                break;
-            }
-            case EVENT_UNREGISTER_CONNECTION_LISTENER: {
-                unregisterConnectionListener((Integer)objs[1]);
-                break;
-            }
-            case EVENT_CONNECT: {
-                connect((DeviceInfo)objs[1]);
-                break;
-            }
-            case EVENT_DISCONNECT: {
-                disconnect();
-                break;
-            }
-
-            default: {
-                switch (msg.what) {
-                    case EVENT_SEND_PACKET: {
-                        @SuppressWarnings("unchecked")
-                        T packet = (T)objs[1];
-                        sendPacket(packet);
-                        break;
-                    }
-                }
-                break;
-            }
-        }
-    };
 
     private ActiveGeppaService<T> me = this;
 
@@ -118,30 +69,20 @@ public abstract class ActiveGeppaService<T extends IPacket> extends Service {
         @Override
         public int registerServiceListener(IActiveGeppaServiceListener listener)
                 throws RemoteException {
-            int seq = mNextConnectionListenerSeq++;
-            sHandler.obtainMessage(EVENT_REGISTER_CONNECTION_LISTENER, new Object[] {
-                    me, seq, listener
-            }).sendToTarget();
-            return seq;
+            return mAsync.registerServiceListener(listener);
         }
 
         @Override
-        public void unregisterServiceListener(int seq) throws RemoteException {
-            sHandler.obtainMessage(EVENT_UNREGISTER_CONNECTION_LISTENER, new Object[] {
-                    me, seq
-            }).sendToTarget();
+        public boolean unregisterServiceListener(int seq) throws RemoteException {
+            return mAsync.unregisterServiceListener(seq);
         }
 
         public void connect(DeviceInfo deviceInfo) throws RemoteException {
-            sHandler.obtainMessage(EVENT_CONNECT, new Object[] {
-                    me, deviceInfo
-            }).sendToTarget();
+            mAsync.connect(deviceInfo);
         };
 
         public void disconnect() throws RemoteException {
-            sHandler.obtainMessage(EVENT_DISCONNECT, new Object[] {
-                me
-            }).sendToTarget();
+            mAsync.disconnect();
         };
 
         @Override
@@ -151,14 +92,7 @@ public abstract class ActiveGeppaService<T extends IPacket> extends Service {
 
         @Override
         public boolean sendPacket(PacketWrapper packet) throws RemoteException {
-            if (mDeviceAdapter != null) {
-                sHandler.obtainMessage(EVENT_SEND_PACKET, new Object[] {
-                        me, packet.getPacket()
-                }).sendToTarget();
-                return true;
-            } else {
-                return false;
-            }
+            return mAsync.sendPacket(packet);
         }
     };
 
@@ -223,7 +157,58 @@ public abstract class ActiveGeppaService<T extends IPacket> extends Service {
         unregisterReceiver(mUsbReceiver);
     }
 
-    private void connect(DeviceInfo deviceInfo) {
+    public BaudRate getBaudRate() {
+        return mBaudRate;
+    }
+
+    public void setBaudRate(BaudRate baudRate) {
+        mBaudRate = baudRate;
+    }
+
+    abstract protected void handleConnectedNotification(boolean connected, DeviceInfo deviceInfo);
+
+    private DeviceInfo pickDeviceInfo(IDeviceAdapter<T> adapter) {
+        if (adapter != null) {
+            return adapter.getDeviceInfo();
+        } else {
+            return null;
+        }
+    }
+
+    public boolean sendPacket(T packet) {
+        if (mDeviceAdapter != null) {
+            return mDeviceAdapter.sendPacket(packet);
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public int registerServiceListener(IActiveGeppaServiceListener listener) {
+        int seq = mNextConnectionListenerSeq++;
+        IDeviceAdapter<T> mcThread = mDeviceAdapter;
+        try {
+            DeviceState state = (mcThread != null) ? mcThread.getDeviceState() : null;
+            DeviceInfo deviceInfo = pickDeviceInfo(mcThread);
+            listener.onDeviceStateChanged(state, DeviceEventCode.ON_REGISTER, deviceInfo);
+
+            mServiceListeners.append(seq, listener);
+        } catch (RemoteException e) {
+            // Ignore
+            Log.w(Constants.TAG, e.getMessage(), e);
+        }
+        return seq;
+    }
+
+    @Override
+    public boolean unregisterServiceListener(int seq) {
+        boolean result = (mServiceListeners.get(seq) != null);
+        mServiceListeners.remove(seq);
+        return result;
+    }
+
+    @Override
+    public void connect(DeviceInfo deviceInfo) {
         disconnect();
 
         if (deviceInfo.getDeviceType() == DeviceType.TCP) {
@@ -267,7 +252,7 @@ public abstract class ActiveGeppaService<T extends IPacket> extends Service {
                         });
             }
         } else {
-            mDeviceAdapter = new DummyDeviceAdapter<T>(mDeviceAdapterListener, sHandler);
+            mDeviceAdapter = new DummyDeviceAdapter<T>(mDeviceAdapterListener);
             try {
                 mDeviceAdapter.startAdapter();
             } catch (InterruptedException e) {
@@ -277,7 +262,8 @@ public abstract class ActiveGeppaService<T extends IPacket> extends Service {
         }
     }
 
-    private void disconnect() {
+    @Override
+    public void disconnect() {
         if (mDeviceAdapter != null) {
             try {
                 mDeviceAdapter.stopAdapter();
@@ -289,57 +275,26 @@ public abstract class ActiveGeppaService<T extends IPacket> extends Service {
         }
     }
 
-    public BaudRate getBaudRate() {
-        return mBaudRate;
-    }
-
-    public void setBaudRate(BaudRate baudRate) {
-        mBaudRate = baudRate;
-    }
-
-    abstract protected void handleConnectedNotification(boolean connected, DeviceInfo deviceInfo);
-
-    private DeviceInfo getCurrentDeviceInfo() {
+    @Override
+    public DeviceInfo getCurrentDeviceInfo() {
         return pickDeviceInfo(mDeviceAdapter);
     }
 
-    private DeviceInfo pickDeviceInfo(IDeviceAdapter<T> adapter) {
-        if (adapter != null) {
-            return adapter.getDeviceInfo();
-        } else {
-            return null;
-        }
-    }
-
-    private void registerConnectionListener(IActiveGeppaServiceListener listener, int seq) {
-        IDeviceAdapter<T> mcThread = mDeviceAdapter;
-        try {
-            DeviceState state = (mcThread != null) ? mcThread.getDeviceState() : null;
-            DeviceInfo deviceInfo = pickDeviceInfo(mcThread);
-            listener.onDeviceStateChanged(state, DeviceEventCode.ON_REGISTER, deviceInfo);
-
-            mServiceListeners.append(seq, listener);
-        } catch (RemoteException e) {
-            // Ignore
-            Log.w(Constants.TAG, e.getMessage(), e);
-        }
-    }
-
-    public int registerConnectionListener(IActiveGeppaServiceListener listener) {
-        int seq = mNextConnectionListenerSeq++;
-        registerConnectionListener(listener, seq);
-        return seq;
-    }
-
-    public void unregisterConnectionListener(int seq) {
-        mServiceListeners.remove(seq);
-    }
-
-    public boolean sendPacket(T packet) {
+    @Override
+    public boolean sendPacket(PacketWrapper packet) {
         if (mDeviceAdapter != null) {
-            return mDeviceAdapter.sendPacket(packet);
+            @SuppressWarnings("unchecked")
+            T p = (T)packet.getPacket();
+            return mDeviceAdapter.sendPacket(p);
         } else {
             return false;
         }
     }
+
+    @Override
+    public IBinder asBinder() {
+        // not used
+        return null;
+    }
+
 }

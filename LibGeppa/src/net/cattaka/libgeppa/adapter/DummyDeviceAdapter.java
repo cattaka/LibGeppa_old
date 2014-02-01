@@ -12,16 +12,15 @@ public class DummyDeviceAdapter<T extends IPacket> implements IDeviceAdapter<T> 
 
     private DeviceState mLastDeviceState = DeviceState.INITIAL;
 
-    private Handler mHandler;
+    private static Handler sHandler = new Handler();;
 
-    public DummyDeviceAdapter(IDeviceAdapterListener<T> listener, Handler handler) {
+    public DummyDeviceAdapter(IDeviceAdapterListener<T> listener) {
         mListener = listener;
-        mHandler = handler;
     }
 
     @Override
     public void startAdapter() throws InterruptedException {
-        mHandler.post(new Runnable() {
+        sHandler.post(new Runnable() {
             @Override
             public void run() {
                 DeviceInfo deviceInfo = getDeviceInfo();
@@ -36,7 +35,7 @@ public class DummyDeviceAdapter<T extends IPacket> implements IDeviceAdapter<T> 
 
     @Override
     public void stopAdapter() throws InterruptedException {
-        mHandler.post(new Runnable() {
+        sHandler.post(new Runnable() {
             @Override
             public void run() {
                 DeviceInfo deviceInfo = getDeviceInfo();

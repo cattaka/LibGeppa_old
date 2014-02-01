@@ -9,7 +9,7 @@ interface IActiveGeppaService {
 
     int registerServiceListener(IActiveGeppaServiceListener listener);
 
-    void unregisterServiceListener(int seq);
+    boolean unregisterServiceListener(int seq);
 
     void connect(in DeviceInfo deviceInfo);
 

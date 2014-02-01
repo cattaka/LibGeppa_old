@@ -1,6 +1,8 @@
 
 package net.cattaka.libgeppa;
 
+import net.cattaka.libgeppa.binder.PassiveGeppaServiceFuncs;
+import net.cattaka.libgeppa.binder.async.PassiveGeppaServiceFuncsAsync;
 import net.cattaka.libgeppa.data.ConnectionCode;
 import net.cattaka.libgeppa.data.ConnectionState;
 import net.cattaka.libgeppa.data.IPacket;
@@ -16,7 +18,10 @@ import android.os.RemoteException;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
 
-public class PassiveGeppaService<T extends IPacket> extends Service {
+public class PassiveGeppaService<T extends IPacket> extends Service implements
+        PassiveGeppaServiceFuncs {
+    private PassiveGeppaServiceFuncsAsync mAsync = new PassiveGeppaServiceFuncsAsync(this);
+
     private IConnectionThreadListener<T> mConnectionThreadListener = new IConnectionThreadListener<T>() {
         @Override
         public void onReceive(T packet) {
@@ -40,38 +45,35 @@ public class PassiveGeppaService<T extends IPacket> extends Service {
         }
     };
 
-    private IGeppaService.Stub mBinder = new IGeppaService.Stub() {
+    private IPassiveGeppaService.Stub mBinder = new IPassiveGeppaService.Stub() {
         @Override
         public boolean sendPacket(PacketWrapper packet) throws RemoteException {
-            return me.sendPacket(packet);
+            return mAsync.sendPacket(packet);
         }
 
         @Override
         public boolean isConnected() throws RemoteException {
-            return me.isConnected();
+            return mAsync.isConnected();
         }
 
         @Override
         public ConnectionState getConnectionState() throws RemoteException {
-            return me.getConnectionState();
+            return mAsync.getConnectionState();
         }
 
         @Override
-        public int registerGeppaServiceListener(IGeppaServiceListener listner)
+        public int registerGeppaServiceListener(IPassiveGeppaServiceListener listner)
                 throws RemoteException {
-            return me.registerGeppaServiceListener(listner);
+            return mAsync.registerGeppaServiceListener(listner);
         }
 
         @Override
-        public void unregisterGeppaServiceListener(int seq) throws RemoteException {
-            me.unregisterGeppaServiceListener(seq);
+        public boolean unregisterGeppaServiceListener(int seq) throws RemoteException {
+            return mAsync.unregisterGeppaServiceListener(seq);
         }
     };
 
     private PassiveGeppaService<T> me = this;
-
-    //
-    // private IBluetoothAdapter mBluetoothAdapter;
 
     private ConnectionThread<T> mConnectionThread;
 
@@ -83,7 +85,7 @@ public class PassiveGeppaService<T extends IPacket> extends Service {
 
     private int mListenerSeq;
 
-    private SparseArray<IGeppaServiceListener> mListenerMap;
+    private SparseArray<IPassiveGeppaServiceListener> mListenerMap;
 
     private boolean destroyed;
 
@@ -92,7 +94,7 @@ public class PassiveGeppaService<T extends IPacket> extends Service {
     public PassiveGeppaService() throws NullPointerException {
         // mBluetoothAdapter = BluetoothAdapterFactory.getDefaultAdapter();
         mListenerSeq = 1;
-        mListenerMap = new SparseArray<IGeppaServiceListener>();
+        mListenerMap = new SparseArray<IPassiveGeppaServiceListener>();
     }
 
     public void setup(IPacketFactory<T> packetFactory, IPassiveReceiver<T> passiveReceiver) {
@@ -189,7 +191,7 @@ public class PassiveGeppaService<T extends IPacket> extends Service {
         PacketWrapper packetWrapper = new PacketWrapper(packet);
         for (int i = 0; i < mListenerMap.size(); i++) {
             int key = mListenerMap.keyAt(i);
-            IGeppaServiceListener listner = mListenerMap.valueAt(i);
+            IPassiveGeppaServiceListener listner = mListenerMap.valueAt(i);
             try {
                 listner.onReceivePacket(packetWrapper);
             } catch (RemoteException e) {
@@ -208,7 +210,7 @@ public class PassiveGeppaService<T extends IPacket> extends Service {
         SparseIntArray errors = new SparseIntArray();
         for (int i = 0; i < mListenerMap.size(); i++) {
             int key = mListenerMap.keyAt(i);
-            IGeppaServiceListener listner = mListenerMap.valueAt(i);
+            IPassiveGeppaServiceListener listner = mListenerMap.valueAt(i);
             try {
                 listner.onConnectionStateChanged(state);
             } catch (RemoteException e) {
@@ -226,32 +228,46 @@ public class PassiveGeppaService<T extends IPacket> extends Service {
     }
 
     /** for binder */
-    @SuppressWarnings("unchecked")
-    protected boolean sendPacket(PacketWrapper packet) {
+    @Override
+    public boolean sendPacket(PacketWrapper packet) {
         if (mConnectionThread != null) {
-            return mConnectionThread.sendPacket((T)packet.getPacket());
+            @SuppressWarnings("unchecked")
+            T t = (T)packet.getPacket();
+            return mConnectionThread.sendPacket(t);
         }
         return false;
     }
 
     /** for binder */
-    protected boolean isConnected() {
+    @Override
+    public boolean isConnected() {
         return (mLastConnectionState == ConnectionState.CONNECTED);
     }
 
     /** for binder */
-    protected ConnectionState getConnectionState() {
+    @Override
+    public ConnectionState getConnectionState() {
         return mLastConnectionState;
     }
 
     /** for binder */
-    protected int registerGeppaServiceListener(IGeppaServiceListener listner) {
+    @Override
+    public int registerGeppaServiceListener(IPassiveGeppaServiceListener listner) {
         mListenerMap.put(mListenerSeq, listner);
         return mListenerSeq++;
     }
 
     /** for binder */
-    protected void unregisterGeppaServiceListener(int seq) {
+    @Override
+    public boolean unregisterGeppaServiceListener(int seq) {
+        boolean result = (mListenerMap != null);
         mListenerMap.remove(seq);
+        return result;
+    }
+
+    @Override
+    public IBinder asBinder() {
+        // not used
+        return null;
     }
 }
