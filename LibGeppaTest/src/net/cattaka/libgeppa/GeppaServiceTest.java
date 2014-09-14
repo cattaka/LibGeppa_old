@@ -19,7 +19,7 @@ import android.test.ServiceTestCase;
 public class GeppaServiceTest extends ServiceTestCase<TestGeppaService> {
     private TestBtAdapterFactory mBtAdapterFactory;
 
-    static class GeppaServiceListenerImpl extends IGeppaServiceListener.Stub {
+    static class GeppaServiceListenerImpl extends IPassiveGeppaServiceListener.Stub {
         private List<ConnectionState> status = new ArrayList<ConnectionState>();
 
         private List<MyPacket> packets = new ArrayList<MyPacket>();
@@ -49,7 +49,7 @@ public class GeppaServiceTest extends ServiceTestCase<TestGeppaService> {
     public void testStartStopService_noDevice() throws Exception {
         Intent intent = new Intent();
         IBinder iBinder = bindService(intent);
-        IGeppaService service = IGeppaService.Stub.asInterface(iBinder);
+        IPassiveGeppaService service = IPassiveGeppaService.Stub.asInterface(iBinder);
         for (int i = 0; i < 10; i++) {
             if (!service.isConnected()) {
                 break;
@@ -64,7 +64,7 @@ public class GeppaServiceTest extends ServiceTestCase<TestGeppaService> {
 
         Intent intent = new Intent();
         IBinder iBinder = bindService(intent);
-        IGeppaService service = IGeppaService.Stub.asInterface(iBinder);
+        IPassiveGeppaService service = IPassiveGeppaService.Stub.asInterface(iBinder);
         {
             Thread.sleep(200);
             assertFalse(service.isConnected());
@@ -76,7 +76,7 @@ public class GeppaServiceTest extends ServiceTestCase<TestGeppaService> {
 
         Intent intent = new Intent();
         IBinder iBinder = bindService(intent);
-        IGeppaService service = IGeppaService.Stub.asInterface(iBinder);
+        IPassiveGeppaService service = IPassiveGeppaService.Stub.asInterface(iBinder);
         for (int i = 0; i < 10; i++) {
             if (service.isConnected()) {
                 break;
@@ -92,7 +92,7 @@ public class GeppaServiceTest extends ServiceTestCase<TestGeppaService> {
 
         Intent intent = new Intent();
         IBinder iBinder = bindService(intent);
-        IGeppaService service = IGeppaService.Stub.asInterface(iBinder);
+        IPassiveGeppaService service = IPassiveGeppaService.Stub.asInterface(iBinder);
         { // Waiting connection is established.
             while (!service.isConnected()) {
                 Thread.sleep(100);
@@ -124,7 +124,7 @@ public class GeppaServiceTest extends ServiceTestCase<TestGeppaService> {
 
         Intent intent = new Intent();
         IBinder iBinder = bindService(intent);
-        IGeppaService service = IGeppaService.Stub.asInterface(iBinder);
+        IPassiveGeppaService service = IPassiveGeppaService.Stub.asInterface(iBinder);
         GeppaServiceListenerImpl listener = new GeppaServiceListenerImpl();
         int listenerSeq = service.registerGeppaServiceListener(listener);
 
