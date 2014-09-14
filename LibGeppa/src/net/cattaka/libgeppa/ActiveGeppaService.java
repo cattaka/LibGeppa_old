@@ -227,7 +227,7 @@ public abstract class ActiveGeppaService<T extends IPacket> extends Service impl
             if (usbDevice != null && usbManager.hasPermission(usbDevice)) {
                 // If service already has permission, it start thread.
                 mDeviceAdapter = new LocalDeviceAdapter<T>(mDeviceAdapterListener, mPacketFactory,
-                        true, usbManager, usbDevice, mBaudRate);
+                        true, this, usbDevice, mBaudRate);
                 try {
                     mDeviceAdapter.startAdapter();
                 } catch (InterruptedException e) {

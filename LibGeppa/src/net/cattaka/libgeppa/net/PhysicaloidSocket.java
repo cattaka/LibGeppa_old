@@ -5,11 +5,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import jp.ksksue.driver.serial.FTDriver;
+import com.physicaloid.lib.Physicaloid;
+
 import net.cattaka.libgeppa.IRawSocket;
 import net.cattaka.libgeppa.exception.NotImplementedException;
 
-public class FtDriverSocket implements IRawSocket {
+public class PhysicaloidSocket implements IRawSocket {
     private class InputStreamEx extends InputStream {
         private byte[] buf = new byte[64];
 
@@ -21,12 +22,12 @@ public class FtDriverSocket implements IRawSocket {
 
         @Override
         public int read() throws IOException {
-            while (mFtDriver.isConnected() && !closed) {
+            while (mPhysicaloid.isOpened() && !closed) {
                 if (bufIdx < bufReaded) {
                     return (0xFF) & buf[bufIdx++];
                 } else {
                     bufIdx = 0;
-                    bufReaded = mFtDriver.read(buf);
+                    bufReaded = mPhysicaloid.read(buf);
                 }
             }
             return -1;
@@ -65,20 +66,21 @@ public class FtDriverSocket implements IRawSocket {
         @Override
         public void flush() throws IOException {
             super.flush();
-            mFtDriver.write(mBuf, mBufIdx);
+            mPhysicaloid.write(mBuf, mBufIdx);
             mBufIdx = 0;
         }
     }
 
-    private FTDriver mFtDriver;
+    private Physicaloid mPhysicaloid;
 
     private InputStreamEx mInputStream;
 
     private OutputStreamEx mOutputStream;
 
-    public FtDriverSocket(FTDriver ftDriver) {
+    
+    public PhysicaloidSocket(Physicaloid ftDriver) {
         super();
-        mFtDriver = ftDriver;
+        mPhysicaloid = ftDriver;
         mInputStream = new InputStreamEx();
         mOutputStream = new OutputStreamEx();
     }
@@ -105,12 +107,12 @@ public class FtDriverSocket implements IRawSocket {
 
     @Override
     public void close() throws IOException {
-        mFtDriver.end();
+        mPhysicaloid.close();
     }
 
     @Override
     public boolean isConnected() {
-        return mFtDriver.isConnected();
+        return mPhysicaloid.isOpened();
     }
 
 }
